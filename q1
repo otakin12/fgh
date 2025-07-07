@@ -16,23 +16,15 @@
         /* Canvasの親要素の縦横比を維持しつつ、レスポンシブにするためのスタイル */
         .canvas-container {
             width: 100%;
-            /* デフォルトはA4縦の縦横比 */
-            padding-top: calc(841.89 / 595.28 * 100%);
+            /* A4横の縦横比 (高さ / 幅 * 100%) - 595.28 / 841.89 */
+            padding-top: calc(595.28 / 841.89 * 100%);
             position: relative;
             background-color: #f0f0f0; /* プレビューエリアの背景色 */
             border-radius: 0.75rem; /* rounded-xl */
             overflow: hidden; /* 角丸に対応 */
         }
-        .canvas-container.landscape {
-            /* 横向きの縦横比 */
-            padding-top: calc(595.28 / 841.89 * 100%);
-        }
-        .canvas-container.a3-portrait {
-            /* A3縦の縦横比 */
-            padding-top: calc(1190.55 / 841.89 * 100%);
-        }
         .canvas-container.a3-landscape {
-            /* A3横の縦横比 */
+            /* A3横の縦横比 (高さ / 幅 * 100%) - 841.89 / 1190.55 */
             padding-top: calc(841.89 / 1190.55 * 100%);
         }
         .canvas-container canvas {
@@ -74,23 +66,6 @@
                        class="mt-1 block w-full h-12 rounded-lg border border-gray-300 cursor-pointer">
             </div>
 
-            <!-- 表示形式選択 -->
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">表示形式</label>
-                <div class="mt-1 flex gap-4">
-                    <label class="inline-flex items-center">
-                        <input type="radio" name="displayFormat" value="oneCharPortrait" checked
-                               class="form-radio h-5 w-5 text-red-600 focus:ring-red-500 rounded-full">
-                        <span class="ml-2 text-gray-700">1文字/ページ (縦向き)</span>
-                    </label>
-                    <label class="inline-flex items-center">
-                        <input type="radio" name="displayFormat" value="twoCharLandscape"
-                               class="form-radio h-5 w-5 text-red-600 focus:ring-red-500 rounded-full">
-                        <span class="ml-2 text-gray-700">2文字/ページ (横向き)</span>
-                    </label>
-                </div>
-            </div>
-
             <!-- 用紙サイズ選択 -->
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">用紙サイズ</label>
@@ -98,12 +73,12 @@
                     <label class="inline-flex items-center">
                         <input type="radio" name="paperSize" value="A4" checked
                                class="form-radio h-5 w-5 text-red-600 focus:ring-red-500 rounded-full">
-                        <span class="ml-2 text-gray-700">A4</span>
+                        <span class="ml-2 text-gray-700">A4 (横向き)</span>
                     </label>
                     <label class="inline-flex items-center">
                         <input type="radio" name="paperSize" value="A3"
                                class="form-radio h-5 w-5 text-red-600 focus:ring-red-500 rounded-full">
-                        <span class="ml-2 text-gray-700">A3</span>
+                        <span class="ml-2 text-gray-700">A3 (横向き)</span>
                     </label>
                 </div>
             </div>
@@ -129,22 +104,18 @@
         const charCount = document.getElementById('charCount');
         const bgColor = document.getElementById('bgColor');
         const textColor = document.getElementById('textColor');
-        const displayFormatRadios = document.querySelectorAll('input[name="displayFormat"]');
         const paperSizeRadios = document.querySelectorAll('input[name="paperSize"]');
         const downloadPdfBtn = document.getElementById('downloadPdfBtn');
         const popCanvas = document.getElementById('popCanvas');
         const ctx = popCanvas.getContext('2d');
         const canvasContainer = document.getElementById('canvasContainer');
 
-        // 用紙サイズの設定 (pt単位, PDF出力用)
+        // 用紙サイズの設定 (pt単位, PDF出力用) - 横向き
         const PAPER_SIZES = {
-            A4_PORTRAIT: { width: 595.28, height: 841.89 }, // 210mm x 297mm @ 72dpi
-            A3_PORTRAIT: { width: 841.89, height: 1190.55 }, // 297mm x 420mm @ 72dpi
-            A4_LANDSCAPE: { width: 841.89, height: 595.28 }, // 297mm x 210mm @ 72dpi
-            A3_LANDSCAPE: { width: 1190.55, height: 841.89 }  // 420mm x 297mm @ 72dpi
+            A4: { width: 841.89, height: 595.28 }, // 297mm x 210mm @ 72dpi
+            A3: { width: 1190.55, height: 841.89 }  // 420mm x 297mm @ 72dpi
         };
 
-        let currentDisplayFormat = 'oneCharPortrait'; // 現在選択されている表示形式
         let currentPaperSize = 'A4'; // 現在選択されている用紙サイズ
 
         /**
@@ -160,29 +131,12 @@
 
             // キャンバスのサイズ設定 (プレビュー用)
             // 実際のPDFサイズ比率を維持しつつ、コンテナに合わせてスケーリング
-            let selectedSizeKey;
-            if (currentDisplayFormat === 'oneCharPortrait') {
-                selectedSizeKey = `${currentPaperSize}_PORTRAIT`;
-            } else { // twoCharLandscape
-                selectedSizeKey = `${currentPaperSize}_LANDSCAPE`;
-            }
-            const selectedSize = PAPER_SIZES[selectedSizeKey];
+            const selectedSize = PAPER_SIZES[currentPaperSize];
             const aspectRatio = selectedSize.height / selectedSize.width;
 
             // コンテナのpadding-topを更新して縦横比を調整
             canvasContainer.style.paddingTop = `${aspectRatio * 100}%`;
-            canvasContainer.classList.remove('landscape', 'a3-portrait', 'a3-landscape'); // 全てのクラスをリセット
-            if (currentDisplayFormat === 'twoCharLandscape') {
-                canvasContainer.classList.add('landscape');
-                if (currentPaperSize === 'A3') {
-                    canvasContainer.classList.add('a3-landscape');
-                }
-            } else { // oneCharPortrait
-                if (currentPaperSize === 'A3') {
-                    canvasContainer.classList.add('a3-portrait');
-                }
-            }
-
+            canvasContainer.classList.toggle('a3-landscape', currentPaperSize === 'A3');
 
             // キャンバスの描画サイズは、コンテナの幅と高さに合わせる
             // ただし、描画解像度を上げるために、CSSサイズとは別に内部解像度を設定
@@ -204,35 +158,30 @@
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
 
-            if (text.length > 0) {
-                if (currentDisplayFormat === 'oneCharPortrait') {
-                    // 1文字/ページ (縦向き) のプレビュー
-                    const charToDisplay = text[0];
-                    const fontSize = displayWidth * 0.7; // フォントサイズをキャンバスの幅の約70%に設定
-                    ctx.font = `bold ${fontSize}px 'Inter', sans-serif`;
-                    ctx.fillText(charToDisplay, displayWidth / 2, displayHeight / 2);
-                } else { // twoCharLandscape
-                    // 2文字/ページ (横向き) のプレビュー
-                    const charsToDisplay = text.substring(0, 2);
-                    if (charsToDisplay.length > 0) {
-                        const fontSize = displayWidth * 0.35; // フォントサイズをキャンバスの幅の約35%に設定 (2文字分)
-                        ctx.font = `bold ${fontSize}px 'Inter', sans-serif`;
+            // プレビューでは入力された最初の2文字のみを大きく表示
+            const charsToDisplay = text.substring(0, 2);
 
-                        if (charsToDisplay.length === 1) {
-                            ctx.fillText(charsToDisplay[0], displayWidth / 2, displayHeight / 2);
-                        } else {
-                            const char1 = charsToDisplay[0];
-                            const char2 = charsToDisplay[1];
-                            const charWidth = ctx.measureText(char1).width; // 1文字の幅を概算
+            if (charsToDisplay.length > 0) {
+                // フォントサイズをキャンバスの幅の約35%に設定 (2文字分)
+                const fontSize = displayWidth * 0.35;
+                ctx.font = `bold ${fontSize}px 'Inter', sans-serif`;
 
-                            const totalCharsWidth = charWidth * 2;
-                            const spacing = displayWidth * 0.05; // 文字間のスペース
-                            const startX = (displayWidth - totalCharsWidth - spacing) / 2 + charWidth / 2;
+                // 2文字の配置を調整
+                if (charsToDisplay.length === 1) {
+                    ctx.fillText(charsToDisplay[0], displayWidth / 2, displayHeight / 2);
+                } else {
+                    // 2文字を横に並べる
+                    const char1 = charsToDisplay[0];
+                    const char2 = charsToDisplay[1];
+                    const charWidth = ctx.measureText(char1).width; // 1文字の幅を概算
 
-                            ctx.fillText(char1, startX, displayHeight / 2);
-                            ctx.fillText(char2, startX + charWidth + spacing, displayHeight / 2);
-                        }
-                    }
+                    // 2文字分の合計幅と余白を考慮して配置
+                    const totalCharsWidth = charWidth * 2;
+                    const spacing = displayWidth * 0.05; // 文字間のスペース
+                    const startX = (displayWidth - totalCharsWidth - spacing) / 2 + charWidth / 2;
+
+                    ctx.fillText(char1, startX, displayHeight / 2);
+                    ctx.fillText(char2, startX + charWidth + spacing, displayHeight / 2);
                 }
             }
 
@@ -250,33 +199,18 @@
             }
 
             const { jsPDF } = window.jspdf;
-            let selectedSizeObj;
-            let orientation;
-            let filenamePrefix;
-            let charStep; // 1ページあたりの文字数
+            const selectedSize = PAPER_SIZES[currentPaperSize];
 
-            if (currentDisplayFormat === 'oneCharPortrait') {
-                selectedSizeObj = PAPER_SIZES[`${currentPaperSize}_PORTRAIT`];
-                orientation = 'portrait';
-                filenamePrefix = '一文字ポップ';
-                charStep = 1;
-            } else { // twoCharLandscape
-                selectedSizeObj = PAPER_SIZES[`${currentPaperSize}_LANDSCAPE`];
-                orientation = 'landscape';
-                filenamePrefix = '二文字ポップ';
-                charStep = 2;
-            }
-
-            // PDFインスタンスの作成
+            // PDFインスタンスの作成 (横向き)
             const doc = new jsPDF({
-                orientation: orientation,
+                orientation: 'landscape', // 横向きに設定
                 unit: 'pt',
-                format: [selectedSizeObj.width, selectedSizeObj.height]
+                format: [selectedSize.width, selectedSize.height]
             });
 
-            // 入力されたテキストを文字数に応じて分割してページを生成
-            for (let i = 0; i < text.length; i += charStep) {
-                const chars = text.substring(i, i + charStep);
+            // 入力されたテキストを2文字ずつに分割してページを生成
+            for (let i = 0; i < text.length; i += 2) {
+                const chars = text.substring(i, i + 2);
 
                 // 最初のページ以外は新しいページを追加
                 if (i > 0) {
@@ -288,8 +222,8 @@
                 const pdfCtx = pdfCanvas.getContext('2d');
 
                 // PDFのサイズに合わせてキャンバスの内部解像度を設定
-                pdfCanvas.width = selectedSizeObj.width;
-                pdfCanvas.height = selectedSizeObj.height;
+                pdfCanvas.width = selectedSize.width;
+                pdfCanvas.height = selectedSize.height;
 
                 // 背景の描画
                 pdfCtx.fillStyle = bgColor.value;
@@ -300,41 +234,35 @@
                 pdfCtx.textAlign = 'center';
                 pdfCtx.textBaseline = 'middle';
 
-                if (currentDisplayFormat === 'oneCharPortrait') {
-                    // 1文字/ページ (縦向き)
-                    const fontSize = selectedSizeObj.width * 0.7;
-                    pdfCtx.font = `bold ${fontSize}pt 'Inter', sans-serif`;
-                    pdfCtx.fillText(chars[0], selectedSizeObj.width / 2, selectedSizeObj.height / 2);
-                } else { // twoCharLandscape
-                    // 2文字/ページ (横向き)
-                    const fontSize = selectedSizeObj.width * 0.35;
-                    pdfCtx.font = `bold ${fontSize}pt 'Inter', sans-serif`;
+                // フォントサイズをPDFページの幅の約35%に設定 (2文字分)
+                const fontSize = selectedSize.width * 0.35;
+                pdfCtx.font = `bold ${fontSize}pt 'Inter', sans-serif`; // pt単位でフォントサイズ指定
 
-                    if (chars.length === 1) {
-                        pdfCtx.fillText(chars[0], selectedSizeObj.width / 2, selectedSizeObj.height / 2);
-                    } else {
-                        const char1 = chars[0];
-                        const char2 = chars[1];
-                        const charWidth = pdfCtx.measureText(char1).width;
+                // 2文字の配置を調整
+                if (chars.length === 1) {
+                    pdfCtx.fillText(chars[0], selectedSize.width / 2, selectedSize.height / 2);
+                } else {
+                    const char1 = chars[0];
+                    const char2 = chars[1];
+                    const charWidth = pdfCtx.measureText(char1).width; // 1文字の幅を概算
 
-                        const totalCharsWidth = charWidth * 2;
-                        const spacing = selectedSizeObj.width * 0.05;
-                        const startX = (selectedSizeObj.width - totalCharsWidth - spacing) / 2 + charWidth / 2;
+                    const totalCharsWidth = charWidth * 2;
+                    const spacing = selectedSize.width * 0.05; // 文字間のスペース
+                    const startX = (selectedSize.width - totalCharsWidth - spacing) / 2 + charWidth / 2;
 
-                        pdfCtx.fillText(char1, startX, selectedSizeObj.height / 2);
-                        pdfCtx.fillText(char2, startX + charWidth + spacing, selectedSizeObj.height / 2);
-                    }
+                    pdfCtx.fillText(char1, startX, selectedSize.height / 2);
+                    pdfCtx.fillText(char2, startX + charWidth + spacing, selectedSize.height / 2);
                 }
 
                 // PDFにキャンバスの内容を追加
                 const imgData = pdfCanvas.toDataURL('image/png');
-                doc.addImage(imgData, 'PNG', 0, 0, selectedSizeObj.width, selectedSizeObj.height);
+                doc.addImage(imgData, 'PNG', 0, 0, selectedSize.width, selectedSize.height);
             }
 
             // PDFをダウンロード
             const filename = text.length > 0
-                ? `${filenamePrefix}_${text.substring(0, 10)}.pdf`
-                : `${filenamePrefix}.pdf`;
+                ? `二文字ポップ_${text.substring(0, 10)}.pdf`
+                : `二文字ポップ.pdf`;
 
             doc.save(filename);
         });
@@ -343,14 +271,6 @@
         popText.addEventListener('input', updatePreview);
         bgColor.addEventListener('input', updatePreview);
         textColor.addEventListener('input', updatePreview);
-
-        displayFormatRadios.forEach(radio => {
-            radio.addEventListener('change', (event) => {
-                currentDisplayFormat = event.target.value;
-                updatePreview();
-            });
-        });
-
         paperSizeRadios.forEach(radio => {
             radio.addEventListener('change', (event) => {
                 currentPaperSize = event.target.value;
